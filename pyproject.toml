@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pdf-figures-mcp"
+version = "0.1.0"
+description = "MCP server that inventories and extracts figures, tables and captions from PDF research papers."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "AGPL-3.0-or-later" }
+dependencies = [
+    "pymupdf>=1.24",
+    "pillow>=10",
+    "mcp>=1.9",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "reportlab>=4",
+    "ruff>=0.6",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pdf_figures"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
