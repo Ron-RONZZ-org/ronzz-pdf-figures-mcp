@@ -108,3 +108,21 @@ def test_scanned_page_ocr(fixtures):
     assert len(found) == 1
     assert found[0].scanned is True
     assert found[0].bbox.height > 100
+
+
+def test_scanned_region_without_ocr(fixtures):
+    """The ink-band crop works from OCR-shaped blocks without Tesseract."""
+    from pdf_figures.detect import BBox, TextBlock
+    from pdf_figures.scan import scanned_figure_region
+
+    with pymupdf.open(fixtures["scanned"]) as document:
+        page = document[0]
+        caption = TextBlock(
+            bbox=BBox(150, 636, 450, 652),
+            text="Figure 1: A raster bar chart used as a fixture.",
+            size=9,
+        )
+        region = scanned_figure_region(page, caption, [caption])
+    assert region is not None
+    assert region.height > 100
+    assert region.y1 <= caption.bbox.y0

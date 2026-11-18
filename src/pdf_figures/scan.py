@@ -60,7 +60,11 @@ def scanned_figure_region(
     if band.width <= 0 or band.height <= 0:
         return None
 
-    pixmap = page.get_pixmap(dpi=PROFILE_DPI, colorspace=pymupdf.csGRAY, clip=pymupdf.Rect(band))
+    pixmap = page.get_pixmap(
+        dpi=PROFILE_DPI,
+        colorspace=pymupdf.csGRAY,
+        clip=pymupdf.Rect(band.x0, band.y0, band.x1, band.y1),
+    )
     image = Image.frombytes("L", (pixmap.width, pixmap.height), pixmap.samples)
     ink = _ink_bbox(image, (0, 0, pixmap.width, pixmap.height))
     if ink is None:
