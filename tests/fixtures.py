@@ -84,6 +84,29 @@ def make_table(path: Path) -> Path:
     return path
 
 
+def make_table_footnote(path: Path) -> Path:
+    pdf = canvas.Canvas(str(path), pagesize=A4)
+    pdf.setFont("Helvetica-Bold", 10)
+    pdf.drawString(60, PAGE_HEIGHT - 72, "Table 2: Results with a footnote.")
+    rows = [
+        ("Method", "Effect"),
+        ("Attention\u2020", "0.42"),
+        ("Recurrent", "0.18"),
+    ]
+    top = PAGE_HEIGHT - 110
+    for row, values in enumerate(rows):
+        y = top - row * 22
+        for column, value in enumerate(values):
+            pdf.setFont("Helvetica", 9)
+            pdf.drawString(64 + column * 140, y, value)
+        pdf.line(60, y - 4, 400, y - 4)
+    pdf.setFont("Helvetica", 9)
+    pdf.drawString(60, top - 3 * 22 - 25, "\u2020 estimated from the source table")
+    pdf.showPage()
+    pdf.save()
+    return path
+
+
 def make_false_caption(path: Path) -> Path:
     pdf = canvas.Canvas(str(path), pagesize=A4)
     _body_text(pdf)
@@ -152,6 +175,7 @@ BUILDERS = {
     "raster": make_raster_figure,
     "vector": make_vector_figure,
     "table": make_table,
+    "table_footnote": make_table_footnote,
     "false_caption": make_false_caption,
     "multi_panel": make_multi_panel,
     "two_column": make_two_column,

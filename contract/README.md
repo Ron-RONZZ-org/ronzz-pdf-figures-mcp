@@ -23,7 +23,7 @@ schemas and checks the `pdf_figures.manifest` builder output.
 
 ## Handoff
 
-`extract_pdf_table` (follow-up) returns the **envelope**:
+`extract_pdf_table` returns the **envelope**:
 
 ```json
 {

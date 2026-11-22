@@ -20,6 +20,7 @@ The wiki writer mounts `/figures` read-only and lists it in `uploadDirs`, so the
 | `list_pdf_figures(filepath, pages?, ocr="auto", ocr_langs="eng")` | JSON inventory: `index, kind, page, caption, bbox, caption_bbox, embedded_raster, panels, area_pct, scanned` plus `scanned_pages` / `notes`. No images. |
 | `extract_pdf_figure(filepath, index, pages?, dpi=600, include_caption=false, ocr="auto", ocr_langs="eng")` | Text summary (`local_path`, bytes, dimensions, dpi, caption) + a 1024-px PNG preview. The full-resolution PNG is written under `/figures`. |
 | `render_pdf_region(filepath, page, bbox, dpi=600)` | Same summary for an arbitrary page region (uncaptioned or scanned content). |
+| `extract_pdf_table(filepath, index, dataset?, pdf_file?, pages?, ocr?, ocr_langs?)` | Parses the table at `index` into the shared curated-dataset manifest envelope (`{ manifest, validation_report, manifest_path }`) and returns a 1024-px preview. The envelope is handed to `embeddable-dataset-upsert` unchanged. |
 
 ## Dataset manifest contract
 
@@ -38,10 +39,12 @@ extractor, the MediaWiki MCP `embeddable-dataset-upsert` tool and the wiki's
 }
 ```
 
-`extract_pdf_table` (follow-up) uses this builder and writes the envelope under
-`PDF_FIGURES_OUTPUT_DIR/manifests/`; the Statistician passes the envelope (or
-its path) to `embeddable-dataset-upsert` without reshaping. `tests/test_manifest_contract.py`
-validates the examples and the builder against the pinned schemas.
+`extract_pdf_table` uses `pdf_figures.table` (PyMuPDF `find_tables`, per-cell text,
+footnote pairing) and this builder; it writes the envelope under
+`PDF_FIGURES_OUTPUT_DIR/manifests/`. The Statistician passes the envelope (or
+its path) to `embeddable-dataset-upsert` without reshaping.
+`tests/test_table_contract.py` and `tests/test_manifest_contract.py` validate
+the examples, the parser and the builder against the pinned schemas.
 
 ## Detection
 
