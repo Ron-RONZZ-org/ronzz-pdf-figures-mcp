@@ -21,6 +21,28 @@ The wiki writer mounts `/figures` read-only and lists it in `uploadDirs`, so the
 | `extract_pdf_figure(filepath, index, pages?, dpi=600, include_caption=false, ocr="auto", ocr_langs="eng")` | Text summary (`local_path`, bytes, dimensions, dpi, caption) + a 1024-px PNG preview. The full-resolution PNG is written under `/figures`. |
 | `render_pdf_region(filepath, page, bbox, dpi=600)` | Same summary for an arbitrary page region (uncaptioned or scanned content). |
 
+## Dataset manifest contract
+
+The curated-dataset pipeline shares one manifest shape across the PDF
+extractor, the MediaWiki MCP `embeddable-dataset-upsert` tool and the wiki's
+`action=datasetupsert`. The pinned JSON Schemas and the golden example live in
+`contract/` (copied verbatim from `ronzz-wikibase`; see its README).
+
+`src/pdf_figures/manifest.py` builds the transport envelope:
+
+```json
+{
+  "manifest": { "manifest_version": "1.0", "dataset": {}, "tables": [] },
+  "validation_report": { "status": "ok", "checks": [], "summary": {}, "tool": "pdf-figures-mcp", "tool_version": "0.2.0", "generated_at": "…" },
+  "manifest_path": "/figures/manifests/example-2026-t1-20261122T170000Z.json"
+}
+```
+
+`extract_pdf_table` (follow-up) uses this builder and writes the envelope under
+`PDF_FIGURES_OUTPUT_DIR/manifests/`; the Statistician passes the envelope (or
+its path) to `embeddable-dataset-upsert` without reshaping. `tests/test_manifest_contract.py`
+validates the examples and the builder against the pinned schemas.
+
 ## Detection
 
 - Captions are the anchors: `Figure|Fig.|Table|Scheme|Chart|Diagram|Plate <N>[:.]`
