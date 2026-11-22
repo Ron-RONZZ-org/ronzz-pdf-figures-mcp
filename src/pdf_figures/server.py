@@ -9,6 +9,7 @@ Tools:
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import os
 from collections import OrderedDict
@@ -21,8 +22,10 @@ from mcp.types import ImageContent, TextContent
 
 from .detect import BBox
 from .inventory import Inventory, build_inventory
+from .manifest import build_envelope, build_manifest, slug, write_envelope
 from .paths import AllowedRoots, PathNotAllowed
 from .render import DEFAULT_DPI, preview_png, render_png
+from .table import TableExtractionError, extract_table
 
 OUTPUT_DIR = Path(os.environ.get("PDF_FIGURES_OUTPUT_DIR", "/figures"))
 ALLOWED_ROOTS = AllowedRoots(
@@ -180,6 +183,79 @@ def extract_pdf_figure(
     return [
         TextContent(type="text", text=json.dumps(meta, ensure_ascii=False)),
         _image_block(rendered.png),
+    ]
+
+
+@mcp.tool(
+    name="extract_pdf_table",
+    description=(
+        "Extract ONE table from the inventory into the curated-dataset manifest envelope "
+        "({ manifest, validation_report, manifest_path }). The table is parsed with PyMuPDF's "
+        "table finder from the text layer; cells are read individually, header names become "
+        "columns, numeric/date columns get typed values, and marker notes below the table are "
+        "paired as footnotes. Pass dataset_id/title/source fields via the optional dataset "
+        "object (or JSON string); the tool fills dataset_id/title/access_tier defaults. "
+        "The table is parsed from the text layer when possible, with an OCR word-clustering "
+        "fallback (method='auto'; force 'text-layer' or 'ocr'; 'vision' is left to the caller). "
+        "The returned envelope can be handed to embeddable-dataset-upsert unchanged; the JSON "
+        "is also written under <output>/manifests/ and its path is returned. The wiki remains "
+        "the authoritative validator."
+    ),
+)
+def extract_pdf_table(
+    filepath: str,
+    index: int,
+    dataset: dict | str | None = None,
+    pdf_file: str | None = None,
+    pages: list[int] | None = None,
+    ocr: str = "auto",
+    ocr_langs: str = "eng",
+    method: str = "auto",
+) -> list[TextContent | ImageContent]:
+    path = _resolve(filepath)
+    inventory = _inventory(path, pages, ocr, ocr_langs)
+    candidate = next((item for item in inventory.candidates if item.index == index), None)
+    if candidate is None:
+        available = ", ".join(str(item.index) for item in inventory.candidates) or "none"
+        raise ValueError(
+            f"index {index} is not in the inventory (available: {available}). "
+            "Call list_pdf_figures first, or pass the same pages/ocr arguments."
+        )
+    if candidate.kind != "table":
+        raise ValueError(f"index {index} is a {candidate.kind}, not a table")
+    if isinstance(dataset, str):
+        try:
+            dataset = json.loads(dataset)
+        except json.JSONDecodeError as error:
+            raise ValueError(f"dataset is not valid JSON: {error}") from error
+    metadata = dict(dataset) if isinstance(dataset, dict) else {}
+    dataset_id = str(metadata.get("dataset_id") or slug(path.stem) or "dataset")
+    metadata.setdefault("dataset_id", dataset_id)
+    metadata.setdefault("title", path.stem)
+    metadata.setdefault("access_tier", "public")
+    metadata.setdefault("status", "draft")
+    sha1 = hashlib.sha1(path.read_bytes()).hexdigest()
+    try:
+        with pymupdf.open(path) as doc:
+            table, report = extract_table(
+                doc[candidate.page - 1],
+                candidate,
+                dataset_id=dataset_id,
+                pdf_file=pdf_file or path.name,
+                pdf_sha1=sha1,
+                ocr_langs=ocr_langs,
+                method=method,
+            )
+            preview = render_png(doc[candidate.page - 1], candidate.bbox, dpi=150).png
+    except TableExtractionError as error:
+        raise ValueError(str(error)) from error
+    manifest = build_manifest(metadata, [table])
+    envelope = build_envelope(manifest, report)
+    manifest_path = write_envelope(envelope, OUTPUT_DIR)
+    envelope["manifest_path"] = str(manifest_path)
+    return [
+        TextContent(type="text", text=json.dumps(envelope, ensure_ascii=False, indent=1)),
+        _image_block(preview),
     ]
 
 
